@@ -44,24 +44,47 @@ class LinearNoiseScheduler:
                 + sqrt_one_minus_alpha_cum_prod.to(original.device) * noise)
         
     def sample_prev_timestep(self, x0, xt, t):
-        if t == 0:
-            return x0,x0
-
         device = xt.device
+        B, C, H, W = xt.shape
 
-        beta_t = self.betas[t].to(device)
-        alpha_t = self.alphas[t].to(device)
-        sqrt_alpha_t = self.sqrt_alphas[t].to(device)
-        alpha_bar_t = self.alpha_cum_prod[t].to(device)
-        alpha_bar_prev = self.alpha_cum_prod[t - 1].to(device)
-        sqrt_alpha_bar_prev = self.sqrt_alpha_cum_prod[t - 1].to(device)
+        # Ensure t is a tensor of shape (B,) and on the correct device
+        if isinstance(t, int) or (isinstance(t, torch.Tensor) and t.ndim == 0):
+            if int(t) == 0:
+                return x0, x0
+            t = torch.full((B,), int(t), dtype=torch.long, device=device)
+        else:
+            t = t.to(device).long()
+            if (t == 0).all():
+                return x0, x0
 
-        coef_x0 = (sqrt_alpha_bar_prev * beta_t) / (1 - alpha_bar_t)
-        coef_xt = (sqrt_alpha_t * (1 - alpha_bar_prev)) / (1 - alpha_bar_t)
+        # Move all precomputed tensors to device
+        betas = self.betas.to(device)
+        alphas = self.alphas.to(device)
+        sqrt_alphas = self.sqrt_alphas.to(device)
+        alpha_cum_prod = self.alpha_cum_prod.to(device)
+        sqrt_alpha_cum_prod = self.sqrt_alpha_cum_prod.to(device)
 
+        # Gather per-timestep values
+        beta_t = betas[t].reshape(B, 1, 1, 1)
+        alpha_t = alphas[t].reshape(B, 1, 1, 1)
+        sqrt_alpha_t = sqrt_alphas[t].reshape(B, 1, 1, 1)
+        alpha_bar_t = alpha_cum_prod[t].reshape(B, 1, 1, 1)
+
+        # Handle previous timestep
+        t_prev = torch.clamp(t - 1, min=0)
+        alpha_bar_prev = alpha_cum_prod[t_prev].reshape(B, 1, 1, 1)
+        sqrt_alpha_bar_prev = sqrt_alpha_cum_prod[t_prev].reshape(B, 1, 1, 1)
+
+        # Compute mean and variance of posterior
+        coef_x0 = (sqrt_alpha_bar_prev * beta_t) / (1. - alpha_bar_t)
+        coef_xt = (sqrt_alpha_t * (1. - alpha_bar_prev)) / (1. - alpha_bar_t)
         mean = coef_x0 * x0 + coef_xt * xt
-        posterior_variance = beta_t * (1 - alpha_bar_prev) / (1 - alpha_bar_t)
-        sigma = torch.sqrt(posterior_variance)
-        noise = torch.randn_like(xt)
 
-        return mean + sigma * noise, x0
+        posterior_variance = beta_t * (1. - alpha_bar_prev) / (1. - alpha_bar_t)
+        sigma = torch.sqrt(posterior_variance)
+
+        # Add noise unless t == 0 (we already handle this above)
+        noise = torch.randn_like(xt)
+        sample = mean + sigma * noise
+
+        return sample, x0

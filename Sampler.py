@@ -25,13 +25,13 @@ model.eval()  # Set to evaluation mode
 scheduler = LinearNoiseScheduler(num_timesteps, beta_start, beta_end)
 
 @torch.no_grad()
-def generate_images():
+def generate_images(num_samples=1):
     """ Generate images from pure noise using the trained diffusion model """
-    xt = torch.randn((1, *image_size)).to(device)  # Start with Gaussian noise
-    
+    xt = torch.randn((num_samples, *image_size)).to(device)  # Start with Gaussian noise
+
     for t in reversed(range(num_timesteps)):  # Reverse diffusion process
 
-        t_tensor = torch.full((1,), t, device=device, dtype=torch.long)
+        t_tensor = torch.full((num_samples,), t, device=device, dtype=torch.long)
 
         # ims = torch.clamp(xt, -1., 1.).detach().cpu()
         # ims = (ims + 1) / 2
@@ -53,7 +53,7 @@ def generate_images():
         # img.save(os.path.join('generated_images', 'samples3', '{}_x2.png'.format(t)))
         # img.close()
 
-        xt,x0 = scheduler.sample_prev_timestep(image_pred, xt, t)  # Get previous timestep
+        xt,x0 = scheduler.sample_prev_timestep(image_pred, xt, t_tensor)  # Get previous timestep
 
 
         # ims = torch.clamp(xt, -1., 1.).detach().cpu()
@@ -66,7 +66,8 @@ def generate_images():
 
     return xt  # Final denoised image
 
-generated_images = generate_images()
+num_samples = 3  # Number of images to generate
+generated_images = generate_images(num_samples)
 
 # Convert images to CPU and normalize
 generated_images = (generated_images.clamp(-1, 1) + 1) / 2  # Rescale to [0,1]
@@ -75,8 +76,8 @@ generated_images = generated_images.permute(0, 2, 3, 1).cpu().numpy()  # (B, H, 
 # Save and Display
 os.makedirs("generated_images", exist_ok=True)
 for i, img in enumerate(generated_images):
-    plt.imsave(f"generated_images/samples4/sample_0.png", img)
-    plt.subplot(1,1, i + 1)
+    plt.imsave(f"generated_images/samples4/sample_{i}.png", img)
+    plt.subplot(1, num_samples, i + 1)
     plt.imshow(img)
     plt.axis("off")
 plt.show()
