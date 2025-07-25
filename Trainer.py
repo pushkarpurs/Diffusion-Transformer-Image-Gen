@@ -15,7 +15,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Hyperparameters
 batch_size=16
 lr=2e-4
-num_epochs=150
+num_epochs=250
 num_timesteps=1000  # Number of diffusion steps
 beta_start, beta_end=1e-4, 0.02
 no_of_dit_blocks=12
@@ -101,7 +101,7 @@ def train():
             print(f"Checkpoint saved at epoch {epoch+1}")
 
     print("Training complete.")
-    torch.save(model.state_dict(), "dit_final_12_f_150.pth")
+    torch.save(model.state_dict(), "dit_final_12_f_250.pth")
 
 if __name__ == "__main__":
     print("Training DiT model...")
