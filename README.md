@@ -40,6 +40,8 @@ This project implements a **Diffusion Transformer (DiT)**-based image generator 
 - **Optimizer**: AdamW
 - **Scheduler**: Linear beta schedule
 - **Timesteps**: 1000
+- **Latent Space**: The images are converted from (B,3,256,256) --> (B,4,32,32) (Dimentions of each channel downsampled by a factor of 8 to reduce VRAM usage) 
+
 
 ### Download the Model
 ```Bash
